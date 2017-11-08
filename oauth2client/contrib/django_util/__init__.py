@@ -240,6 +240,12 @@ from oauth2client.contrib.django_util import storage
 
 GOOGLE_OAUTH2_DEFAULT_SCOPES = ('email',)
 GOOGLE_OAUTH2_REQUEST_ATTRIBUTE = 'oauth'
+GOOGLE_OAUTH2_CLIENT_SECRETS_JSON = getattr(django.conf.settings,
+                      'GOOGLE_OAUTH2_CLIENT_SECRETS_JSON', None)
+GOOGLE_OAUTH2_CLIENT_ID = getattr(django.conf.settings, "GOOGLE_OAUTH2_CLIENT_ID",
+                        None)
+GOOGLE_OAUTH2_CLIENT_SECRET = getattr(django.conf.settings,
+                            "GOOGLE_OAUTH2_CLIENT_SECRET", None)
 
 
 def _load_client_secrets(filename):
@@ -271,17 +277,11 @@ def _get_oauth2_client_id_and_secret(settings_instance):
         A 2-tuple, the first item is the client id and the second
          item is the client secret.
     """
-    secret_json = getattr(settings_instance,
-                          'GOOGLE_OAUTH2_CLIENT_SECRETS_JSON', None)
-    if secret_json is not None:
-        return _load_client_secrets(secret_json)
+    if GOOGLE_OAUTH2_CLIENT_SECRETS_JSON is not None:
+        return _load_client_secrets(GOOGLE_OAUTH2_CLIENT_SECRETS_JSON)
     else:
-        client_id = getattr(settings_instance, "GOOGLE_OAUTH2_CLIENT_ID",
-                            None)
-        client_secret = getattr(settings_instance,
-                                "GOOGLE_OAUTH2_CLIENT_SECRET", None)
-        if client_id is not None and client_secret is not None:
-            return client_id, client_secret
+        if GOOGLE_OAUTH2_CLIENT_ID is not None and GOOGLE_OAUTH2_CLIENT_SECRET is not None:
+            return GOOGLE_OAUTH2_CLIENT_ID, GOOGLE_OAUTH2_CLIENT_SECRET
         else:
             raise exceptions.ImproperlyConfigured(
                 "Must specify either GOOGLE_OAUTH2_CLIENT_SECRETS_JSON, or "
@@ -362,9 +362,13 @@ class OAuth2Settings(object):
          self.storage_model_credentials_property) = _get_storage_model()
 
 
-oauth2_settings = OAuth2Settings(django.conf.settings)
+# Check if we have the credentials. If the credentials don't exist (like, for instance,
+# if they're not in source control and we're using an automated testing or build process),
+# don't crash the entire application.
 
-_CREDENTIALS_KEY = 'google_oauth2_credentials'
+if GOOGLE_OAUTH2_CLIENT_SECRETS_JSON or (GOOGLE_OAUTH2_CLIENT_ID and GOOGLE_OAUTH2_CLIENT_SECRET):
+    oauth2_settings = OAuth2Settings(django.conf.settings)
+    _CREDENTIALS_KEY = 'google_oauth2_credentials'
 
 
 def get_storage(request):
